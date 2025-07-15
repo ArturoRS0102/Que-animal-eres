@@ -41,7 +41,7 @@ def generar_imagen_dalle(animal):
         "model": "dall-e-3",
         "prompt": f"Un retrato realista y bonito de un {animal} en estilo digital, fondo blanco",
         "n": 1,
-        "size": "1024x1024"  # <- tamaño válido
+        "size": "512x512"
     }
     try:
         response = requests.post(API_URL_IMAGE, headers=headers, json=data)
