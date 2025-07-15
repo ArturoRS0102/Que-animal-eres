@@ -42,6 +42,11 @@ def index():
 def serve_static_file(filename):
     return send_from_directory('.', filename)
 
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
+
+
 @app.route('/analizar', methods=['POST'])
 def analizar():
     respuestas = request.json.get('respuestas', {})
