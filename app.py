@@ -176,7 +176,7 @@ def index():
             }
         }
     ]
-    return render_template('index.html', cuestionario=full_cuestionario)
+    return render_template('quiz.html', cuestionario=cuestionario)
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
