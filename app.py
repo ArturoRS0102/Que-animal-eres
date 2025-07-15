@@ -6,6 +6,8 @@ import os
 import json
 import requests
 from flask import Flask, render_template, request, jsonify
+from flask import send_from_directory
+
 
 app = Flask(__name__)
 
@@ -35,6 +37,10 @@ cuestionario = [
 @app.route('/')
 def index():
     return render_template("quiz.html", cuestionario=cuestionario)
+
+@app.route('/<path:filename>')
+def serve_static_file(filename):
+    return send_from_directory('.', filename)
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
