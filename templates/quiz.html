@@ -92,7 +92,6 @@
     </div>
   </footer>
 
-  <!-- Script corregido -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".question-block").forEach(block => {
@@ -108,6 +107,74 @@
           });
         });
       });
+
+      const form = document.getElementById("quiz-form");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        document.getElementById("quiz-section").classList.add("hidden");
+        document.getElementById("loading-section").classList.remove("hidden");
+
+        const respuestas = {};
+        for (let i = 1; i <= 8; i++) {
+          const selected = document.querySelector(`input[name="q${i}"]:checked`);
+          if (selected) {
+            respuestas[`q${i}`] = selected.value;
+          }
+        }
+
+        let seconds = 7;
+        const timer = document.getElementById("ad-timer");
+        const countdown = setInterval(() => {
+          seconds--;
+          timer.textContent = seconds;
+          if (seconds <= 0) {
+            clearInterval(countdown);
+            enviarRespuestas(respuestas);
+          }
+        }, 1000);
+      });
+
+      async function enviarRespuestas(respuestas) {
+        try {
+          const res = await fetch("/analizar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ respuestas })
+          });
+          const data = await res.json();
+
+          document.getElementById("loading-section").classList.add("hidden");
+          document.getElementById("result-section").classList.remove("hidden");
+          document.getElementById("animal-name").textContent = data.animal;
+          document.getElementById("animal-description").textContent = data.descripcion;
+          document.getElementById("animal-motto").textContent = `"${data.lema}"`;
+
+          const img = document.getElementById("animal-image");
+          img.src = `https://source.unsplash.com/300x300/?${encodeURIComponent(data.imagen)}`;
+          img.alt = `Imagen de un ${data.animal}`;
+
+          const currentURL = window.location.href;
+          const shareText = `¡Soy un ${data.animal}! ${data.descripcion}`;
+
+          document.getElementById("share-twitter").href =
+            `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentURL)}`;
+
+          document.getElementById("share-facebook").href =
+            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentURL)}`;
+
+          document.getElementById("copy-link").onclick = () => {
+            navigator.clipboard.writeText(currentURL).then(() => {
+              document.getElementById("copy-feedback").textContent = "¡Enlace copiado!";
+              setTimeout(() => {
+                document.getElementById("copy-feedback").textContent = "";
+              }, 3000);
+            });
+          };
+
+        } catch (err) {
+          console.error("Error al enviar respuestas:", err);
+        }
+      }
     });
   </script>
 </body>
