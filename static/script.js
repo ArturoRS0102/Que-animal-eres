@@ -7,14 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyButton = document.getElementById('copy-link');
     const copyFeedback = document.getElementById('copy-feedback');
 
-    // --- CÓDIGO PARA MANEJAR EL ESTILO DE SELECCIÓN ---
-    // Esto ya estaba correcto y se mantiene.
-    const radioButtons = document.querySelectorAll('input[type="radio"]');
-    radioButtons.forEach(radio => {
+    // Maneja el estilo visual de la selección
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', () => {
-            const groupName = radio.name;
-            const optionsInGroup = document.querySelectorAll(`input[name="${groupName}"]`);
-            optionsInGroup.forEach(option => {
+            document.querySelectorAll(`input[name="${radio.name}"]`).forEach(option => {
                 option.parentElement.classList.remove('opcion-seleccionada');
             });
             if (radio.checked) {
@@ -23,8 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- CORRECCIÓN: Event listener del botón de copiar se asigna UNA SOLA VEZ ---
-    // Se mueve fuera de la función displayResult para evitar duplicados.
+    // Asigna el evento al botón de copiar una sola vez
     copyButton.addEventListener('click', () => {
         const animalName = document.getElementById('animal-name').textContent;
         const animalMotto = document.getElementById('animal-motto').textContent;
@@ -36,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
             copyFeedback.textContent = '¡Enlace copiado!';
             setTimeout(() => { copyFeedback.textContent = ''; }, 2000);
         }).catch(err => {
-            console.error('Error al copiar el enlace: ', err);
+            console.error('Error al copiar: ', err);
             copyFeedback.textContent = 'Error al copiar';
         });
     });
@@ -59,11 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingSection.classList.remove('hidden');
         }, 500);
 
-        // --- MEJORA: Lógica de temporizador y API sincronizada ---
         let isTimerFinished = false;
         let apiResult = null;
 
-        // 1. Inicia el temporizador del anuncio
+        const showResultIfNeeded = () => {
+            if (isTimerFinished && apiResult) {
+                displayResult(apiResult);
+            }
+        };
+
         let timeLeft = 7; 
         adTimerEl.textContent = timeLeft;
         const adInterval = setInterval(() => {
@@ -72,14 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (timeLeft <= 0) {
                 clearInterval(adInterval);
                 isTimerFinished = true;
-                // Si la API ya terminó cuando el timer acaba, muestra el resultado
-                if (apiResult) {
-                    displayResult(apiResult);
-                }
+                showResultIfNeeded();
             }
         }, 1000);
 
-        // 2. Llama a la API
         try {
             const response = await fetch('/analizar', {
                 method: 'POST',
@@ -87,33 +82,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ respuestas }),
             });
             if (!response.ok) throw new Error(`Error del servidor: ${response.statusText}`);
-            
-            const result = await response.json();
-            apiResult = result;
-            // Si el timer ya terminó cuando la API responde, muestra el resultado
-            if (isTimerFinished) {
-                displayResult(apiResult);
-            }
+            apiResult = await response.json();
+            showResultIfNeeded();
         } catch (error) {
             console.error('Error al analizar:', error);
-            // --- CORRECCIÓN: String de una sola línea ---
-            const errorResult = {
+            apiResult = {
                 animal: "Error",
                 descripcion: "Hubo un problema al contactar a nuestros expertos animales. Por favor, intenta de nuevo más tarde.",
                 lema: "A veces la selva digital tiene mala señal.",
                 imagen: "error"
             };
-            apiResult = errorResult;
-            if (isTimerFinished) {
-                displayResult(apiResult);
-            }
+            showResultIfNeeded();
         }
     });
 
     function displayResult(result) {
         loadingSection.classList.add('hidden');
-        
-        // --- MEJORA: Asegura que la opacidad se maneje correctamente ---
         resultSection.classList.remove('hidden', 'opacity-0');
         resultSection.classList.add('opacity-100');
 
@@ -134,11 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shareText = `¡Descubrí que mi espíritu animal es un ${result.animal}! "${result.lema}" Descubre el tuyo aquí:`;
         const shareUrl = window.location.href;
 
-        const twitterIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
-        document.getElementById('share-twitter').href = twitterIntent;
-
-        // La URL de Facebook ya estaba correcta, se mantiene.
-        const facebookIntent = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
-        document.getElementById('share-facebook').href = facebookIntent;
+        document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+        document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
     }
 });
