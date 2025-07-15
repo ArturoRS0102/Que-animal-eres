@@ -1,18 +1,16 @@
 # Estructura de proyecto Flask: "Que Animal Eres"
 
-# Paso 1: app.py (principal archivo de la aplicación Flask)
-
 import os
 import json
 import requests
 from flask import Flask, render_template, request, jsonify
 from flask import send_from_directory
 
-
 app = Flask(__name__)
 
 API_KEY = os.getenv("OPENAI_API_KEY")
-API_URL = "https://api.openai.com/v1/chat/completions"
+API_URL_CHAT = "https://api.openai.com/v1/chat/completions"
+API_URL_IMAGE = "https://api.openai.com/v1/images/generations"
 
 # Cuestionario
 cuestionario = [
@@ -34,6 +32,26 @@ cuestionario = [
      "opciones": {"A": "Inteligencia y reflexión.", "B": "Fuerza y determinación.", "C": "Lealtad y compromiso.", "D": "Creatividad y adaptabilidad."}}
 ]
 
+def generar_imagen_dalle(animal):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "dall-e-3",
+        "prompt": f"Un retrato realista y bonito de un {animal} en estilo digital, fondo blanco",
+        "n": 1,
+        "size": "512x512"
+    }
+    try:
+        response = requests.post(API_URL_IMAGE, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+        return result['data'][0]['url']
+    except Exception as e:
+        print("Error generando imagen:", e)
+        return f"https://source.unsplash.com/300x300/?animal,{animal}"
+
 @app.route('/')
 def index():
     return render_template("quiz.html", cuestionario=cuestionario)
@@ -41,11 +59,6 @@ def index():
 @app.route('/<path:filename>')
 def serve_static_file(filename):
     return send_from_directory('.', filename)
-
-@app.route('/sw.js')
-def service_worker():
-    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
-
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
@@ -76,11 +89,18 @@ def analizar():
     }
 
     try:
-        r = requests.post(API_URL, headers=headers, json=body)
+        r = requests.post(API_URL_CHAT, headers=headers, json=body)
+        r.raise_for_status()
         data = r.json()
         content = data['choices'][0]['message']['content']
-        return jsonify(json.loads(content))
+        result = json.loads(content)
+
+        # Generar imagen real con DALL·E
+        result['imagen'] = generar_imagen_dalle(result['animal'])
+
+        return jsonify(result)
     except Exception as e:
+        print("Error al analizar o generar imagen:", e)
         return jsonify({"animal": "Error", "descripcion": "Hubo un error analizando tus respuestas.", "lema": "La IA se fue a dormir.", "imagen": "error"})
 
 if __name__ == '__main__':
