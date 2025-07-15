@@ -150,7 +150,7 @@
           document.getElementById("animal-motto").textContent = `"${data.lema}"`;
 
           const img = document.getElementById("animal-image");
-          img.src = `https://source.unsplash.com/300x300/?${encodeURIComponent(data.imagen)}`;
+          img.src = data.imagen.startsWith("http") ? data.imagen : `https://placehold.co/300x300?text=${encodeURIComponent(data.animal)}`;
           img.alt = `Imagen de un ${data.animal}`;
 
           const currentURL = window.location.href;
