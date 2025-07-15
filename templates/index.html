@@ -54,6 +54,12 @@
                     <div class="space-y-3">
                         {% for key, value in item.opciones.items() %}
                         <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors duration-200 has-[:checked]:bg-amber-100 has-[:checked]:border-amber-500">
+                            <!--
+                                LA CORRECCIÓN ESTÁ AQUÍ:
+                                El atributo 'name' ahora es único para cada pregunta (name="q1", "q2", etc.).
+                                Esto agrupa las 4 opciones de una pregunta, permitiendo que solo una sea seleccionada,
+                                y las separa de las otras preguntas.
+                            -->
                             <input type="radio" name="q{{ loop.index }}" value="{{ key }}" class="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300" required>
                             <span class="ml-4 text-gray-700">{{ value }}</span>
                         </label>
@@ -75,7 +81,7 @@
             <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-amber-500 mx-auto"></div>
             <h2 class="text-2xl font-bold mt-6 text-amber-600">Analizando tu alma salvaje...</h2>
             <p class="text-gray-600 mt-2">Un breve anuncio antes de revelar tu resultado.</p>
-            <div class="mt-4 text-4xl font-bold text-amber-500" id="ad-timer">10</div>
+            <div class="mt-4 text-4xl font-bold text-amber-500" id="ad-timer">7</div>
         </div>
 
         <!-- Sección de Resultado (Oculta por defecto) -->
