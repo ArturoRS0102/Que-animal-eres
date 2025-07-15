@@ -29,11 +29,14 @@
             font-size: 0.9rem;
             text-align: center;
         }
+        /* Clase que agregaremos con JavaScript para el estilo de selección */
+        .opcion-seleccionada {
+            background-color: #fef3c7; /* amber-100 */
+            border-color: #f59e0b; /* amber-500 */
+        }
     </style>
 </head>
 <body class="bg-amber-50 text-gray-800">
-
-    <!-- COMENTARIO DE VERIFICACIÓN: SI VES ESTO EN EL CÓDIGO FUENTE DE TU PÁGINA, EL ARCHIVO ESTÁ ACTUALIZADO. -->
 
     <!-- Banner de Anuncio Superior -->
     <header class="w-full p-4 flex justify-center">
@@ -44,7 +47,7 @@
 
     <main class="container mx-auto p-4 md:p-8 max-w-4xl">
         
-        <!-- Sección del Cuestionario (Visible por defecto) -->
+        <!-- Sección del Cuestionario -->
         <div id="quiz-section" class="bg-white p-6 md:p-10 rounded-2xl shadow-lg transition-opacity duration-500">
             <h1 class="text-3xl md:text-4xl font-bold text-center text-amber-600 mb-2">¿Qué Animal Eres?</h1>
             <p class="text-center text-gray-600 mb-8">Contesta 8 simples preguntas y deja que la IA revele tu espíritu animal.</p>
@@ -55,13 +58,8 @@
                     <p class="text-lg font-semibold mb-4">{{ loop.index }}. {{ item.pregunta }}</p>
                     <div class="space-y-3">
                         {% for key, value in item.opciones.items() %}
-                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors duration-200 has-[:checked]:bg-amber-100 has-[:checked]:border-amber-500">
-                            <!--
-                                LA CORRECCIÓN CLAVE ESTÁ AQUÍ:
-                                El atributo 'name' es único para cada grupo de preguntas (name="q1", "q2", etc.).
-                                Esto asegura que solo se pueda seleccionar UNA opción por pregunta, y que las
-                                preguntas no interfieran entre sí.
-                            -->
+                        <!-- Se ha eliminado la clase 'has-[:checked]' que no funcionaba -->
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors duration-200">
                             <input type="radio" name="q{{ loop.index }}" value="{{ key }}" class="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300" required>
                             <span class="ml-4 text-gray-700">{{ value }}</span>
                         </label>
@@ -78,7 +76,8 @@
             </form>
         </div>
 
-        <!-- Sección de Carga y Anuncio Simulado (Oculta por defecto) -->
+        <!-- El resto del HTML no cambia... -->
+        <!-- Sección de Carga -->
         <div id="loading-section" class="hidden text-center p-10 bg-white rounded-2xl shadow-lg">
             <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-amber-500 mx-auto"></div>
             <h2 class="text-2xl font-bold mt-6 text-amber-600">Analizando tu alma salvaje...</h2>
@@ -86,7 +85,7 @@
             <div class="mt-4 text-4xl font-bold text-amber-500" id="ad-timer">7</div>
         </div>
 
-        <!-- Sección de Resultado (Oculta por defecto) -->
+        <!-- Sección de Resultado -->
         <div id="result-section" class="hidden text-center p-6 md:p-10 bg-white rounded-2xl shadow-lg transition-opacity duration-500">
             <img id="animal-image" src="https://placehold.co/300x300/e2e8f0/94a3b8?text=Animal" alt="Imagen del animal" class="w-48 h-48 md:w-64 md:h-64 object-cover rounded-full mx-auto mb-6 border-4 border-amber-300 shadow-md" onerror="this.src='https://placehold.co/300x300/e2e8f0/94a3b8?text=Animal'">
             <h2 class="text-3xl md:text-4xl font-bold text-amber-600">¡Eres un <span id="animal-name">...</span>!</h2>
@@ -94,7 +93,6 @@
             <blockquote class="mt-6">
                 <p id="animal-motto" class="text-xl italic text-gray-500">"...lema..."</p>
             </blockquote>
-
             <div class="mt-8">
                 <p class="font-semibold mb-4">¡Comparte tu resultado!</p>
                 <div class="flex justify-center items-center space-x-4">
@@ -104,14 +102,12 @@
                 </div>
                 <p id="copy-feedback" class="text-sm text-green-600 mt-2 h-4"></p>
             </div>
-            
             <div class="mt-8">
                  <button onclick="window.location.reload()" class="bg-amber-500 text-white font-bold py-3 px-8 rounded-full hover:bg-amber-600 transition-transform transform hover:scale-105 shadow-md">
                     Hacer el test de nuevo
                 </button>
             </div>
         </div>
-
     </main>
 
     <!-- Banner de Anuncio Inferior -->

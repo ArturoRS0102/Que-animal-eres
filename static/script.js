@@ -5,6 +5,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultSection = document.getElementById('result-section');
     const adTimerEl = document.getElementById('ad-timer');
 
+    // --- NUEVO CÓDIGO PARA MANEJAR EL ESTILO DE SELECCIÓN ---
+    const radioButtons = document.querySelectorAll('input[type="radio"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', () => {
+            // Primero, quita el estilo de todas las opciones de la misma pregunta
+            const groupName = radio.name;
+            const optionsInGroup = document.querySelectorAll(`input[name="${groupName}"]`);
+            optionsInGroup.forEach(option => {
+                option.parentElement.classList.remove('opcion-seleccionada');
+            });
+
+            // Luego, añade el estilo solo a la opción seleccionada
+            if (radio.checked) {
+                radio.parentElement.classList.add('opcion-seleccionada');
+            }
+        });
+    });
+    // --- FIN DEL NUEVO CÓDIGO ---
+
     quizForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -18,7 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Validar que todas las preguntas fueron respondidas
-        if (questionCount < 8) {
+        const totalQuestions = document.querySelectorAll('.question-block').length;
+        if (questionCount < totalQuestions) {
             alert('Por favor, responde todas las preguntas.');
             return;
         }
@@ -31,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
 
         // 3. Simular anuncio con temporizador
-        let timeLeft = 7; // Duración del "anuncio" en segundos
+        let timeLeft = 7; 
         adTimerEl.textContent = timeLeft;
         const adInterval = setInterval(() => {
             timeLeft--;
@@ -60,11 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Esperar a que termine el temporizador del anuncio
             setTimeout(() => {
                 displayResult(result);
-            }, timeLeft * 1000);
+            }, Math.max(0, timeLeft * 1000));
 
         } catch (error) {
             console.error('Error al analizar:', error);
-            // En caso de error, mostrar un mensaje amigable
             const errorResult = {
                 animal: "Error",
                 descripcion: "Hubo un problema al contactar a nuestros expertos animales. Por favor, intenta de nuevo más tarde.",
@@ -73,12 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             setTimeout(() => {
                 displayResult(errorResult);
-            }, timeLeft * 1000);
+            }, Math.max(0, timeLeft * 1000));
         }
     });
 
     function displayResult(result) {
-        // 5. Ocultar carga y mostrar resultado
         loadingSection.classList.add('hidden');
         resultSection.classList.remove('hidden');
         resultSection.classList.add('opacity-100');
@@ -91,17 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 6. Rellenar los datos del resultado
         document.getElementById('animal-name').textContent = result.animal;
         document.getElementById('animal-description').textContent = result.descripcion;
         document.getElementById('animal-motto').textContent = `"${result.lema}"`;
         
-        // Usamos un servicio de imágenes placeholder para simular la imagen del animal
-        // En una versión real, podrías tener una carpeta /static/images/ con las imágenes
-        document.getElementById('animal-image').src = `https://placehold.co/300x300/f9a825/ffffff?text=${encodeURIComponent(result.animal)}`;
+        document.getElementById('animal-image').src = `https://placehold.co/400x400/f9a825/ffffff?text=${encodeURIComponent(result.animal)}`;
         document.getElementById('animal-image').alt = `Imagen de un ${result.animal}`;
 
-        // 7. Configurar botones de compartir
         const shareText = `¡Descubrí que mi espíritu animal es un ${result.animal}! "${result.lema}" Descubre el tuyo aquí:`;
         const shareUrl = window.location.href;
 
