@@ -1,4 +1,3 @@
-<!-- templates/quiz.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -34,14 +33,17 @@
       <p class="text-center text-gray-600 mb-8">Responde 8 preguntas y deja que la IA descubra tu animal interior.</p>
       <form id="quiz-form">
         {% for item in cuestionario %}
+        {% set idx = loop.index %}
         <div class="mb-8 question-block">
-          <p class="text-lg font-semibold mb-4">{{ loop.index }}. {{ item.pregunta }}</p>
+          <p class="text-lg font-semibold mb-4">{{ idx }}. {{ item.pregunta }}</p>
           <div class="space-y-2">
             {% for key, value in item.opciones.items() %}
-            <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors">
-              <input type="radio" name="q{{ loop.index0 }}" value="{{ key }}" class="h-5 w-5 text-amber-600" required>
-              <span class="ml-4">{{ value }}</span>
-            </label>
+            <div>
+              <input type="radio" id="q{{ idx }}-{{ key }}" name="q{{ idx }}" value="{{ key }}" required class="hidden">
+              <label for="q{{ idx }}-{{ key }}" class="block p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors">
+                {{ value }}
+              </label>
+            </div>
             {% endfor %}
           </div>
         </div>
@@ -89,69 +91,24 @@
       Espacio Publicitario (300x250)
     </div>
   </footer>
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
-  <script>
-document.addEventListener("DOMContentLoaded", function () {
-  const form = document.getElementById("quiz-form");
-  const quizSection = document.getElementById("quiz-section");
-  const loadingSection = document.getElementById("loading-section");
-  const resultSection = document.getElementById("result-section");
-  const adTimer = document.getElementById("ad-timer");
 
-  // Control de selección única con resaltado
-  const questionBlocks = document.querySelectorAll(".question-block");
-  questionBlocks.forEach(block => {
-    const radios = block.querySelectorAll("input[type='radio']");
-    radios.forEach(radio => {
-      radio.addEventListener("change", () => {
-        // Elimina estilos anteriores
-        block.querySelectorAll("label").forEach(label => {
-          label.classList.remove("opcion-seleccionada");
+  <!-- Script corregido -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".question-block").forEach(block => {
+        const radios = block.querySelectorAll("input[type='radio']");
+        radios.forEach(radio => {
+          radio.addEventListener("change", () => {
+            radios.forEach(r => {
+              const label = block.querySelector(`label[for="${r.id}"]`);
+              if (label) label.classList.remove("opcion-seleccionada");
+            });
+            const selectedLabel = block.querySelector(`label[for="${radio.id}"]`);
+            if (selectedLabel) selectedLabel.classList.add("opcion-seleccionada");
+          });
         });
-        // Añade clase al seleccionado
-        radio.parentElement.classList.add("opcion-seleccionada");
       });
     });
-  });
-
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    quizSection.classList.add("hidden");
-    loadingSection.classList.remove("hidden");
-
-    // Temporizador simulado de anuncio
-    let counter = 7;
-    adTimer.textContent = counter;
-    const interval = setInterval(() => {
-      counter--;
-      adTimer.textContent = counter;
-      if (counter <= 0) {
-        clearInterval(interval);
-        mostrarResultadoSimulado();
-      }
-    }, 1000);
-  });
-
-  function mostrarResultadoSimulado() {
-    loadingSection.classList.add("hidden");
-    resultSection.classList.remove("hidden");
-    document.getElementById("animal-name").textContent = "Lobo";
-    document.getElementById("animal-description").textContent =
-      "Eres un lobo: inteligente, leal y fuerte. Te gusta actuar en grupo, pero sabes mantenerte firme por tu cuenta.";
-    document.getElementById("animal-motto").textContent =
-      '"Aúlla con los tuyos, pero sigue tu instinto."';
-  }
-
-  // Compartir resultado
-  document.getElementById("copy-link").addEventListener("click", () => {
-    navigator.clipboard.writeText(window.location.href);
-    document.getElementById("copy-feedback").textContent = "¡Enlace copiado!";
-    setTimeout(() => {
-      document.getElementById("copy-feedback").textContent = "";
-    }, 2000);
-  });
-});
-</script>
-
+  </script>
 </body>
 </html>
