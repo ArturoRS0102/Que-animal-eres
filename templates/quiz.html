@@ -6,8 +6,6 @@
   <title>¿Qué Animal Eres?</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <!-- Banner superior real -->
-  <script>(function(d,z,s){s.src='https://'+d+'/401/'+z;try{(document.body||document.documentElement).appendChild(s)}catch(e){}})('gizokraijaw.net',9577497,document.createElement('script'))</script>
   <style>
     body { font-family: 'Poppins', sans-serif; }
     .ad-placeholder {
@@ -39,32 +37,17 @@
 </head>
 <body class="bg-amber-50 text-gray-800">
 
+  <!-- Banner superior -->
+  <div class="w-full flex justify-center my-4">
+    <script>(function(d,z,s){s.src='https://'+d+'/401/'+z;try{(document.body||document.documentElement).appendChild(s)}catch(e){}})('gizokraijaw.net',9577497,document.createElement('script'))</script>
+  </div>
+
   <main class="container mx-auto p-4 md:p-8 max-w-4xl">
     <div id="quiz-section" class="bg-white p-6 md:p-10 rounded-2xl shadow-lg">
       <h1 class="text-3xl md:text-4xl font-bold text-center text-amber-600 mb-2">¿Qué Animal Eres?</h1>
       <p class="text-center text-gray-600 mb-8">Responde 8 preguntas y deja que la IA descubra tu animal interior.</p>
       <form id="quiz-form">
-        {% for item in cuestionario %}
-        {% set idx = loop.index %}
-        <div class="mb-8 question-block">
-          <p class="text-lg font-semibold mb-4">{{ idx }}. {{ item.pregunta }}</p>
-          <div class="space-y-2">
-            {% for key, value in item.opciones.items() %}
-            <div>
-              <input type="radio" id="q{{ idx }}-{{ key }}" name="q{{ idx }}" value="{{ key }}" required>
-              <label for="q{{ idx }}-{{ key }}" class="block p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors">
-                {{ value }}
-              </label>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
-        <div class="text-center mt-8">
-          <button type="submit" class="bg-amber-500 text-white font-bold py-3 px-10 rounded-full hover:bg-amber-600 transition-transform transform hover:scale-105 shadow-md">
-            ¡Descubrir mi animal!
-          </button>
-        </div>
+        <!-- El contenido del cuestionario será generado dinámicamente por el backend con Jinja -->
       </form>
     </div>
 
@@ -104,7 +87,7 @@
 
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('/static/sw.js')
         .then(function(registration) {
           console.log('ServiceWorker registrado con éxito:', registration.scope);
         })
@@ -112,8 +95,78 @@
           console.log('Error al registrar el ServiceWorker:', error);
         });
     }
-  </script>
 
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.getElementById("quiz-form");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        document.getElementById("quiz-section").classList.add("hidden");
+        document.getElementById("loading-section").classList.remove("hidden");
+
+        const respuestas = {};
+        const preguntas = document.querySelectorAll(".question-block");
+        preguntas.forEach((block, i) => {
+          const selected = block.querySelector("input[type='radio']:checked");
+          if (selected) {
+            respuestas[`q${i+1}`] = selected.value;
+          }
+        });
+
+        let seconds = 15;
+        const timer = document.getElementById("ad-timer");
+        const countdown = setInterval(() => {
+          seconds--;
+          timer.textContent = seconds;
+          if (seconds <= 0) {
+            clearInterval(countdown);
+            enviarRespuestas(respuestas);
+          }
+        }, 1000);
+      });
+
+      async function enviarRespuestas(respuestas) {
+        try {
+          const res = await fetch("/analizar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ respuestas })
+          });
+          const data = await res.json();
+
+          document.getElementById("loading-section").classList.add("hidden");
+          document.getElementById("result-section").classList.remove("hidden");
+          document.getElementById("animal-name").textContent = data.animal;
+          document.getElementById("animal-description").textContent = data.descripcion;
+          document.getElementById("animal-motto").textContent = `"${data.lema}"`;
+
+          const img = document.getElementById("animal-image");
+          img.src = data.imagen.startsWith("http") ? data.imagen : `https://source.unsplash.com/300x300/?animal,${encodeURIComponent(data.animal)}`;
+          img.alt = `Imagen de un ${data.animal}`;
+
+          const currentURL = window.location.href;
+          const shareText = `¡Soy un ${data.animal}! ${data.descripcion}`;
+
+          document.getElementById("share-twitter").href =
+            `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentURL)}`;
+
+          document.getElementById("share-facebook").href =
+            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentURL)}`;
+
+          document.getElementById("copy-link").onclick = () => {
+            navigator.clipboard.writeText(currentURL).then(() => {
+              document.getElementById("copy-feedback").textContent = "¡Enlace copiado!";
+              setTimeout(() => {
+                document.getElementById("copy-feedback").textContent = "";
+              }, 3000);
+            });
+          };
+
+        } catch (err) {
+          console.error("Error al enviar respuestas:", err);
+        }
+      }
+    });
+  </script>
 </body>
 </html>
 
