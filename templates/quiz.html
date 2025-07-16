@@ -33,7 +33,6 @@
             <h1 class="text-3xl md:text-4xl font-bold text-center text-amber-600 mb-2">¿Qué Animal Eres?</h1>
             <p class="text-center text-gray-600 mb-8">Responde 8 preguntas y deja que la IA descubra tu animal interior.</p>
             <form id="quiz-form">
-                <!-- Las preguntas se generan dinámicamente con Jinja2 -->
                 {% for item in cuestionario %}
                 {% set idx = loop.index %}
                 <div class="mb-8 question-block">
@@ -91,7 +90,10 @@
     </main>
 
     <script>
-        // Registrar el Service Worker para capacidades offline
+        window.addEventListener('unhandledrejection', event => {
+          console.error('ERROR NO MANEJADO (UNHANDLED REJECTION):', event.reason);
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
@@ -108,7 +110,6 @@
 
             quizForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
-                
                 const formData = new FormData(quizForm);
                 const respuestas = Object.fromEntries(formData.entries());
 
@@ -124,8 +125,14 @@
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+                        let errorMessage;
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || `Error del servidor: ${response.status}`;
+                        } catch (jsonError) {
+                            errorMessage = `Respuesta inesperada del servidor: ${response.status} - ${response.statusText}`;
+                        }
+                        throw new Error(errorMessage);
                     }
 
                     const data = await response.json();
@@ -137,7 +144,8 @@
                         animal: "Error",
                         descripcion: `Hubo un problema al contactar a nuestros expertos en la selva. (${err.message})`,
                         lema: "Inténtalo de nuevo más tarde.",
-                        imagen: "https://placehold.co/512x512/ff0000/ffffff?text=Error"
+                        imagen: "https://placehold.co/512x512/ff0000/ffffff?text=Error",
+                        share_url: window.location.href
                     });
                 } finally {
                     loadingSection.classList.add("hidden");
@@ -152,16 +160,32 @@
                 document.getElementById("animal-image").src = data.imagen;
                 document.getElementById("animal-image").alt = `Imagen de un ${data.animal}`;
 
+                // ===== INICIO: CAMBIO CLAVE PARA COMPARTIR =====
+                // Usamos la URL única que nos envía el servidor. Si no llega, usamos la URL actual como respaldo.
+                const shareUrl = data.share_url || window.location.href; 
                 const shareText = `¡Mi animal interior es un ${data.animal}! Descubre el tuyo.`;
-                const pageUrl = window.location.href;
 
-                document.getElementById("share-twitter").href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`;
-                document.getElementById("share-facebook").href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`;
+                console.log("URL para compartir:", shareUrl); // Línea para depurar y ver qué URL se está usando
+
+                document.getElementById("share-twitter").href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+                document.getElementById("share-facebook").href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                
+                // Guardamos la URL correcta en el botón de copiar
+                document.getElementById("copy-link").dataset.shareUrl = shareUrl;
+                // ===== FIN: CAMBIO CLAVE PARA COMPARTIR =====
             }
 
-            document.getElementById("copy-link").addEventListener("click", () => {
+            document.getElementById("copy-link").addEventListener("click", (e) => {
+                // Obtenemos la URL desde el atributo 'data-' que guardamos antes
+                const urlToCopy = e.currentTarget.dataset.shareUrl;
                 const feedback = document.getElementById("copy-feedback");
-                navigator.clipboard.writeText(window.location.href)
+
+                if (!urlToCopy) {
+                    console.error("No hay URL para copiar.");
+                    return;
+                }
+
+                navigator.clipboard.writeText(urlToCopy)
                     .then(() => {
                         feedback.textContent = "¡Enlace copiado!";
                         setTimeout(() => { feedback.textContent = ""; }, 3000);
