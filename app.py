@@ -1,18 +1,28 @@
-# Estructura de proyecto Flask: "Que Animal Eres"
-
 import os
 import json
 import requests
-from flask import Flask, render_template, request, jsonify
-from flask import send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory
+from dotenv import load_dotenv
 
-app = Flask(__name__)
+# Cargar variables de entorno desde un archivo .env
+# Es una mejor práctica que usar os.getenv directamente para desarrollo.
+load_dotenv()
 
+app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# --- Configuración de API ---
 API_KEY = os.getenv("OPENAI_API_KEY")
 API_URL_CHAT = "https://api.openai.com/v1/chat/completions"
 API_URL_IMAGE = "https://api.openai.com/v1/images/generations"
 
-# Cuestionario
+# --- Verificación de API Key ---
+if not API_KEY:
+    print("¡Advertencia! La variable de entorno OPENAI_API_KEY no está configurada.")
+    # Podrías optar por salir de la aplicación si la API key es crucial
+    # exit()
+
+# --- Cuestionario ---
+# (Sin cambios en la estructura de datos)
 cuestionario = [
     {"pregunta": "¿Cómo prefieres pasar tu tiempo libre?",
      "opciones": {"A": "En casa relajado y tranquilo.", "B": "Haciendo ejercicio o explorando al aire libre.", "C": "Con amigos o en reuniones sociales.", "D": "Probando algo nuevo o creativo."}},
@@ -32,76 +42,135 @@ cuestionario = [
      "opciones": {"A": "Inteligencia y reflexión.", "B": "Fuerza y determinación.", "C": "Lealtad y compromiso.", "D": "Creatividad y adaptabilidad."}}
 ]
 
-def generar_imagen_dalle(animal):
+def generar_imagen_dalle(animal: str) -> str:
+    """
+    Genera una URL de imagen usando DALL-E 3 o devuelve una imagen de fallback en caso de error.
+    """
+    if not API_KEY:
+        print("No se puede generar imagen: API_KEY no disponible.")
+        return f"https://source.unsplash.com/512x512/?animal,{animal}"
+
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
+    # Prompt mejorado para obtener mejores imágenes
     data = {
         "model": "dall-e-3",
-        "prompt": f"Un retrato realista y bonito de un {animal} en estilo digital, fondo blanco",
+        "prompt": f"Un retrato artístico y amigable de un {animal}, estilo ilustración digital, con un fondo simple y colorido.",
         "n": 1,
-        "size": "512x512"
+        "size": "1024x1024", # Usamos 1024x1024 que es el tamaño estándar para DALL-E 3
+        "quality": "standard"
     }
     try:
-        response = requests.post(API_URL_IMAGE, headers=headers, json=data)
-        response.raise_for_status()
+        response = requests.post(API_URL_IMAGE, headers=headers, json=data, timeout=30)
+        response.raise_for_status()  # Lanza un error para respuestas 4xx/5xx
         result = response.json()
-        return result['data'][0]['url']
+        image_url = result.get('data', [{}])[0].get('url')
+        if image_url:
+            return image_url
+        else:
+            print("Error: La respuesta de DALL-E no contenía una URL de imagen.")
+            return f"https://source.unsplash.com/512x512/?animal,{animal}"
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Error en la petición a DALL-E: {e}")
+        return f"https://source.unsplash.com/512x512/?animal,{animal}"
     except Exception as e:
-        print("Error generando imagen:", e)
-        return f"https://source.unsplash.com/300x300/?animal,{animal}"
+        print(f"Error inesperado al generar imagen: {e}")
+        return f"https://source.unsplash.com/512x512/?animal,{animal}"
+
+# --- Rutas de la Aplicación ---
 
 @app.route('/')
 def index():
+    """Renderiza la página principal del cuestionario."""
     return render_template("quiz.html", cuestionario=cuestionario)
 
-@app.route('/<path:filename>')
-def serve_static_file(filename):
-    return send_from_directory('.', filename)
+@app.route('/sw.js')
+def serve_sw():
+    """Sirve el archivo del Service Worker desde el directorio raíz."""
+    return send_from_directory('.', 'sw.js')
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
-    respuestas = request.json.get('respuestas', {})
-    respuestas_formateadas = []
-    for i, (pregunta, opcion) in enumerate(zip(cuestionario, respuestas.values())):
-        texto = pregunta['pregunta']
-        valor = pregunta['opciones'].get(opcion, "")
-        respuestas_formateadas.append(f"{i+1}. {texto} -> {valor}")
+    """Analiza las respuestas del cuestionario y devuelve el animal correspondiente."""
+    if not API_KEY:
+        return jsonify({
+            "animal": "Humano Desconectado", 
+            "descripcion": "Parece que mi cerebro (la API de OpenAI) no está conectado. Por favor, configura la API key.", 
+            "lema": "Sin conexión no hay inspiración.", 
+            "imagen": "https://placehold.co/512x512/ff0000/ffffff?text=Error"
+        }), 500
 
-    prompt = f"""
-    Eres un experto en personalidad animal. Basado en estas respuestas, indica con humor y creatividad qué animal representa a la persona. Responde solo un JSON con esta estructura:
-    {{"animal": "nombre", "descripcion": "texto", "lema": "frase", "imagen": "animal"}}
-    Respuestas:
-    {chr(10).join(respuestas_formateadas)}
+    respuestas = request.json.get('respuestas', {})
+    if not respuestas or len(respuestas) != len(cuestionario):
+        return jsonify({"error": "Se requieren todas las respuestas."}), 400
+
+    # Formateo de respuestas para el prompt
+    respuestas_formateadas = []
+    for i, (pregunta_data, opcion_key) in enumerate(zip(cuestionario, respuestas.values())):
+        texto_pregunta = pregunta_data['pregunta']
+        texto_respuesta = pregunta_data['opciones'].get(opcion_key, "N/A")
+        respuestas_formateadas.append(f"{i+1}. {texto_pregunta}\n   Respuesta: {texto_respuesta}")
+
+    prompt_usuario = "\n".join(respuestas_formateadas)
+    
+    system_prompt = f"""
+    Eres un psicólogo de animales espirituales, divertido y creativo. Analiza las siguientes respuestas de un test de personalidad.
+    Basado en ellas, determina qué animal representa mejor a la persona.
+    Tu respuesta DEBE ser únicamente un objeto JSON válido, sin texto adicional antes o después.
+    La estructura del JSON debe ser la siguiente:
+    {{
+      "animal": "Nombre del Animal",
+      "descripcion": "Una descripción de 2-3 frases sobre por qué la persona es ese animal, destacando su personalidad.",
+      "lema": "Un lema o frase corta y divertida que represente al animal."
+    }}
     """
 
+    body = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt_usuario}
+        ],
+        "response_format": {"type": "json_object"} # Forza la salida en JSON
+    }
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    body = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "Responde solo con JSON"},
-            {"role": "user", "content": prompt}
-        ]
-    }
 
     try:
-        r = requests.post(API_URL_CHAT, headers=headers, json=body)
-        r.raise_for_status()
-        data = r.json()
-        content = data['choices'][0]['message']['content']
-        result = json.loads(content)
+        # Petición a la API de Chat
+        response = requests.post(API_URL_CHAT, headers=headers, json=body, timeout=20)
+        response.raise_for_status()
+        
+        data = response.json()
+        content_str = data.get('choices', [{}])[0].get('message', {}).get('content')
+        
+        if not content_str:
+            raise ValueError("La respuesta de la API de chat estaba vacía.")
 
-        # Generar imagen real con DALL·E
-        result['imagen'] = generar_imagen_dalle(result['animal'])
+        # Cargar el JSON de la respuesta
+        result = json.loads(content_str)
+
+        # Generar imagen con DALL-E
+        animal_nombre = result.get("animal", "desconocido")
+        result['imagen'] = generar_imagen_dalle(animal_nombre)
 
         return jsonify(result)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error en la petición a la API de Chat: {e}")
+        return jsonify({"error": "No se pudo comunicar con el analizador de almas salvajes."}), 503
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error al procesar la respuesta de la API: {e}")
+        return jsonify({"error": "El analizador de almas salvajes dio una respuesta extraña."}), 500
     except Exception as e:
-        print("Error al analizar o generar imagen:", e)
-        return jsonify({"animal": "Error", "descripcion": "Hubo un error analizando tus respuestas.", "lema": "La IA se fue a dormir.", "imagen": "error"})
+        print(f"Error inesperado en /analizar: {e}")
+        return jsonify({"error": "Ocurrió un error misterioso en la selva digital."}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # El puerto 5001 es una alternativa común para evitar conflictos con otros servicios.
+    app.run(host="0.0.0.0", port=5001, debug=True)
