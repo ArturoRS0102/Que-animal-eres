@@ -22,11 +22,11 @@
   </style>
 </head>
 <body class="bg-amber-50 text-gray-800">
-  <header class="w-full p-4 flex justify-center">
-    <div class="ad-placeholder w-full max-w-4xl rounded-lg">
-      Espacio Publicitario (728x90)
-    </div>
-  </header>
+  <!-- Banner superior real -->
+  <div class="w-full flex justify-center my-4">
+    <script src="https://fpyf8.com/88/tag.min.js" data-zone="9575359" async data-cfasync="false"></script>
+  </div>
+
   <main class="container mx-auto p-4 md:p-8 max-w-4xl">
     <div id="quiz-section" class="bg-white p-6 md:p-10 rounded-2xl shadow-lg">
       <h1 class="text-3xl md:text-4xl font-bold text-center text-amber-600 mb-2">¿Qué Animal Eres?</h1>
@@ -86,13 +86,12 @@
       </div>
     </div>
   </main>
-  <footer class="w-full p-4 flex justify-center mt-8">
-    <div class="ad-placeholder w-full max-w-4xl rounded-lg">
-      Espacio Publicitario (300x250)
-    </div>
-  </footer>
 
-  <!-- Integración de anuncios con sw.js -->
+  <!-- Banner inferior real -->
+  <div class="w-full flex justify-center my-4">
+    <script src="https://fpyf8.com/88/tag.min.js" data-zone="9575358" async data-cfasync="false"></script>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
@@ -105,6 +104,7 @@
     }
   </script>
 
+  <!-- Aquí va tu script JS para el formulario y resultado -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".question-block").forEach(block => {
@@ -190,6 +190,5 @@
       }
     });
   </script>
-  <script src="https://fpyf8.com/88/tag.min.js" data-zone="157401" async data-cfasync="false"></script>
 </body>
 </html>
