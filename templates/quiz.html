@@ -28,6 +28,13 @@
       margin: 2rem auto;
       background-color: black;
     }
+    input[type="radio"] {
+      display: none;
+    }
+    input[type="radio"]:checked + label {
+      background-color: #fef3c7;
+      border-color: #f59e0b;
+    }
   </style>
 </head>
 <body class="bg-amber-50 text-gray-800">
@@ -44,7 +51,7 @@
           <div class="space-y-2">
             {% for key, value in item.opciones.items() %}
             <div>
-              <input type="radio" id="q{{ idx }}-{{ key }}" name="q{{ idx }}" value="{{ key }}" required class="hidden">
+              <input type="radio" id="q{{ idx }}-{{ key }}" name="q{{ idx }}" value="{{ key }}" required>
               <label for="q{{ idx }}-{{ key }}" class="block p-4 border rounded-lg cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-colors">
                 {{ value }}
               </label>
@@ -109,3 +116,4 @@
 
 </body>
 </html>
+
