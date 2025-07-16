@@ -4,12 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- Metatags para Redes Sociales (Open Graph) -->
+    <!-- Metatags para Redes Sociales (Open Graph) - VERSIÓN MEJORADA -->
+    
+    <!-- Título que se mostrará en la publicación -->
     <meta property="og:title" content="¡Mi animal interior es un {{ resultado.animal }}!" />
+    
+    <!-- Nombre de tu sitio web -->
+    <meta property="og:site_name" content="¿Qué Animal Eres?" />
+    
+    <!-- Descripción que aparecerá debajo del título -->
     <meta property="og:description" content="{{ resultado.descripcion }}" />
+    
+    <!-- La imagen que se mostrará. Esta es la más importante. -->
     <meta property="og:image" content="{{ resultado.imagen }}" />
+    
+    <!-- Estas dos etiquetas son CLAVE. Le dicen a Facebook el tamaño de la imagen. -->
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+    
+    <!-- La URL única de esta página de resultado -->
     <meta property="og:url" content="{{ request.url }}" />
+    
+    <!-- Indica que es un sitio web -->
     <meta property="og:type" content="website" />
+    
+    <!-- Metatags equivalentes para Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="¡Mi animal interior es un {{ resultado.animal }}!">
     <meta name="twitter:description" content="{{ resultado.descripcion }}">
@@ -23,9 +42,9 @@
         body { font-family: 'Poppins', sans-serif; }
     </style>
 </head>
-<body class="bg-amber-50 text-gray-800 flex items-center justify-center min-h-screen">
+<body class="bg-amber-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
 
-    <main class="container mx-auto p-4 md:p-8 max-w-4xl">
+    <main class="container mx-auto max-w-2xl">
         <div class="text-center p-6 md:p-10 bg-white rounded-2xl shadow-lg">
             <img id="animal-image" src="{{ resultado.imagen }}" class="w-64 h-64 object-cover rounded-full mx-auto mb-6 border-4 border-amber-300 shadow-md" alt="Imagen de un {{ resultado.animal }}">
             <h2 class="text-3xl md:text-4xl font-bold text-amber-600">¡Eres un {{ resultado.animal }}!</h2>
