@@ -22,10 +22,11 @@ API_KEY = os.getenv("OPENAI_API_KEY")
 API_URL_CHAT = "https://api.openai.com/v1/chat/completions"
 API_URL_IMAGE = "https://api.openai.com/v1/images/generations"
 
-# --- Almacenamiento de Resultados ---
+# --- Almacenamiento de Resultados (En memoria) ---
+# Nota: Esto se reiniciará si el servidor se reinicia. Para producción, se usaría una base de datos.
 resultados_store = {}
 
-# --- Cuestionario ---
+# --- Cuestionario (Sin cambios) ---
 cuestionario = [
     {"pregunta": "¿Cómo prefieres pasar tu tiempo libre?",
      "opciones": {"A": "En casa relajado y tranquilo.", "B": "Haciendo ejercicio o explorando al aire libre.", "C": "Con amigos o en reuniones sociales.", "D": "Probando algo nuevo o creativo."}},
@@ -48,9 +49,8 @@ cuestionario = [
 def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
     """
     Genera una imagen con DALL-E, la descarga y guarda localmente,
-    y devuelve la URL pública del archivo guardado.
+    y devuelve la URL pública completa del archivo guardado.
     """
-    # Imagen de respaldo por si todo falla
     fallback_image = url_for('static', filename='placeholder.png', _external=True)
     
     if not API_KEY:
@@ -65,49 +65,37 @@ def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
     }
     
     try:
-        # 1. Generar la URL de la imagen con DALL-E
         print("Paso 1: Solicitando URL a DALL-E...")
         response_dalle = requests.post(API_URL_IMAGE, headers=headers, json=data, timeout=45)
         response_dalle.raise_for_status()
         dalle_url = response_dalle.json().get('data', [{}])[0].get('url')
         if not dalle_url:
             raise ValueError("La respuesta de DALL-E no contenía una URL.")
-        print(f"Paso 1 Exitoso. URL de DALL-E obtenida.")
+        print("Paso 1 Exitoso.")
 
-        # 2. Descargar la imagen desde la URL de DALL-E
         print("Paso 2: Descargando contenido de la imagen...")
         response_image = requests.get(dalle_url, timeout=30)
         response_image.raise_for_status()
-        
         image_content = response_image.content
         if not image_content:
             raise ValueError("El contenido de la imagen descargada está vacío.")
-        print(f"Paso 2 Exitoso. Tamaño de la imagen descargada: {len(image_content)} bytes.")
+        print("Paso 2 Exitoso.")
 
-        # 3. Guardar la imagen en nuestro servidor
         local_filename = f"{resultado_id}.png"
         local_filepath = os.path.join(IMAGE_DIR, local_filename)
         print(f"Paso 3: Guardando imagen en: {local_filepath}")
         with open(local_filepath, 'wb') as f:
             f.write(image_content)
         
-        # Verificación de que el archivo se escribió y no está vacío
         if not os.path.exists(local_filepath) or os.path.getsize(local_filepath) == 0:
-            raise IOError("El archivo no se guardó correctamente en el servidor o está vacío.")
-        print("Paso 3 Exitoso. Archivo guardado.")
+            raise IOError("El archivo no se guardó correctamente o está vacío.")
+        print("Paso 3 Exitoso.")
 
-        # 4. Devolver la URL pública de nuestra imagen local
         final_url = url_for('static', filename=f'generated_images/{local_filename}', _external=True)
         print(f"Paso 4: URL final generada: {final_url}")
         return final_url
 
-    except requests.exceptions.Timeout:
-        print("Error crítico: Timeout durante la comunicación con la API de OpenAI.")
-        return fallback_image
-    except requests.exceptions.RequestException as e:
-        print(f"Error crítico de red al contactar OpenAI: {e}")
-        return fallback_image
-    except (ValueError, IOError, Exception) as e:
+    except (requests.exceptions.RequestException, ValueError, IOError, Exception) as e:
         print(f"Error crítico al generar o guardar la imagen: {e}")
         return fallback_image
 
@@ -115,26 +103,31 @@ def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
 
 @app.route('/')
 def index():
+    """Muestra la página inicial del cuestionario."""
     return render_template("quiz.html", cuestionario=cuestionario)
 
 @app.route('/resultado/<string:resultado_id>')
 def ver_resultado(resultado_id):
+    """
+    ESTA ES LA RUTA CLAVE PARA COMPARTIR.
+    Muestra una página de resultado específica. Los rastreadores de redes sociales visitarán esta URL.
+    Renderiza el HTML en el servidor con todos los datos necesarios para las metaetiquetas.
+    """
     resultado = resultados_store.get(resultado_id)
     if not resultado:
+        # Si el ID no existe, muestra un error 404.
         abort(404)
+    
+    # Pasa el diccionario completo del resultado a la plantilla.
+    # La plantilla 'resultado.html' usará este diccionario para rellenar todo.
     return render_template('resultado.html', resultado=resultado)
-
-# Rutas para archivos en la raíz
-@app.route('/sw.js')
-def serve_sw():
-    return send_from_directory('.', 'sw.js')
-
-@app.route('/robots.txt')
-def serve_robots():
-    return send_from_directory('.', 'robots.txt')
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
+    """
+    ESTA ES LA RUTA 'API' PARA EL CLIENTE.
+    Procesa las respuestas, llama a OpenAI, genera la imagen y devuelve un JSON al JavaScript del navegador.
+    """
     if not API_KEY:
         return jsonify({"error": "La API key no está configurada."}), 500
     
@@ -159,21 +152,35 @@ def analizar():
         result = response.json()['choices'][0]['message']['content']
         resultado_data = json.loads(result)
 
+        # Se genera un ID único para este resultado.
         resultado_id = str(uuid.uuid4())
         
-        # Generar, guardar y obtener la URL local de la imagen
+        # Se genera y guarda la imagen, obteniendo su URL pública.
         animal_nombre = resultado_data.get("animal", "desconocido")
         local_image_url = generar_y_guardar_imagen(animal_nombre, resultado_id)
         resultado_data['imagen'] = local_image_url
         
+        # Se crea la URL para compartir, que apunta a nuestra ruta 'ver_resultado'.
         resultado_data['share_url'] = url_for('ver_resultado', resultado_id=resultado_id, _external=True)
+        
+        # Se guarda el resultado completo en nuestra "base de datos" en memoria.
         resultados_store[resultado_id] = resultado_data
 
+        # Se devuelve el JSON completo al navegador del usuario.
         return jsonify(resultado_data)
 
     except Exception as e:
         print(f"Error inesperado en /analizar: {e}")
         return jsonify({"error": "Ocurrió un error misterioso en la selva digital."}), 500
+
+# --- Rutas de archivos estáticos y errores ---
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('.', 'sw.js')
+
+@app.route('/robots.txt')
+def serve_robots():
+    return send_from_directory('.', 'robots.txt')
 
 @app.errorhandler(404)
 def page_not_found(e):

@@ -3,16 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Título de la pestaña del navegador -->
     <title>¡Soy un {{ resultado.animal }}! - ¿Qué Animal Eres?</title>
+
+    <!-- 
+      ==================================================================
+      CORRECCIÓN #1: Añadir las metaetiquetas para redes sociales.
+      Esto es lo que leen Facebook, Twitter, WhatsApp, etc. para crear
+      la vista previa del enlace. Los llenamos con los datos del resultado.
+      ==================================================================
+    -->
+    <meta property="og:title" content="¡Mi resultado en el Test Animal es {{ resultado.animal }}!" />
+    <meta property="og:description" content="{{ resultado.descripcion }}" />
+    <meta property="og:image" content="{{ resultado.imagen }}" />
+    <meta property="og:url" content="{{ resultado.share_url }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Test Animal Espiritual" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="¡Mi resultado en el Test Animal es {{ resultado.animal }}!" />
+    <meta name="twitter:description" content="{{ resultado.descripcion }}" />
+    <meta name="twitter:image" content="{{ resultado.imagen }}" />
+
+    <!-- Estilos de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos personalizados para la sombra y el texto */
+        .card-shadow {
+            box-shadow: 0 25px 50px -12px rgba(251, 191, 36, 0.25);
+        }
+        .gradient-text {
+            background-image: linear-gradient(to right, #f59e0b, #d97706);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+    </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="bg-amber-50 flex items-center justify-center min-h-screen p-4">
 
 <main class="container mx-auto max-w-2xl">
-    <div class="text-center p-8 md:p-12 bg-gradient-to-br from-white to-amber-50 rounded-2xl card-shadow">
-        <img id="animal-image" src="{{ resultado.imagen }}" class="w-72 h-72 object-cover rounded-full mx-auto mb-8 border-8 border-white shadow-lg" alt="Imagen de un {{ resultado.animal }}">
+    <div class="text-center p-8 md:p-12 bg-white rounded-2xl card-shadow">
+        <img id="animal-image" src="{{ resultado.imagen }}" class="w-64 h-64 md:w-72 md:h-72 object-cover rounded-full mx-auto mb-8 border-8 border-white shadow-lg" alt="Imagen de un {{ resultado.animal }}">
 
-        <h2 class="text-4xl md:text-5xl font-extrabold gradient-text">¡Eres un {{ resultado.animal }}!</h2>
+        <h1 class="text-4xl md:text-5xl font-extrabold gradient-text">¡Eres un {{ resultado.animal }}!</h1>
 
         <p class="text-lg text-gray-600 mt-6 max-w-xl mx-auto">{{ resultado.descripcion }}</p>
 
@@ -20,52 +55,35 @@
             <p class="text-xl italic text-gray-500">"{{ resultado.lema }}"</p>
         </blockquote>
 
-        <!-- Botones principales -->
+        <!-- 
+          ==================================================================
+          CORRECCIÓN #2: Simplificar los botones de compartir.
+          Usamos directamente la 'share_url' del servidor en el href.
+          Esto es más seguro y no depende de JavaScript.
+          ==================================================================
+        -->
         <div class="mt-12 flex flex-col md:flex-row gap-4 justify-center">
-            <!-- Botón para volver a inicio -->
-            <a href="/" class="inline-flex items-center gap-3 bg-amber-500 text-white font-bold py-4 px-10 rounded-full hover:bg-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                <span>¡Haz el test tú también!</span>
-            </a>
-
             <!-- Botón Compartir en Facebook -->
-            <a href="#" id="share-facebook" class="inline-flex items-center gap-2 bg-blue-600 text-white font-semibold py-4 px-8 rounded-full hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-facebook" viewBox="0 0 16 16">
-                  <path d="M8.94 6.768V5.29c0-.383.01-.642.642-.642h.995V2.84H9.582c-1.747 0-2.642.884-2.642 2.565v1.363H5v2.12h1.94V14h2.12V8.89h1.63l.244-2.12H8.94z"/>
-                </svg>
-                <span>Compartir en Facebook</span>
+            <a href="https://www.facebook.com/sharer/sharer.php?u={{ resultado.share_url | urlencode }}" target="_blank" class="inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0 0 3.603 0 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/></svg>
+                <span>Compartir</span>
             </a>
 
             <!-- Botón Compartir en Twitter/X -->
-            <a href="#" id="share-twitter" class="inline-flex items-center gap-2 bg-black text-white font-semibold py-4 px-8 rounded-full hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-twitter-x" viewBox="0 0 16 16">
-                  <path d="M13.498.795h2.666l-5.82 6.64 6.855 8.562H13.16l-4.386-5.49-4.395 5.49H.295l6.888-8.599-5.683-6.604h2.8l3.982 4.629L13.498.795z"/>
-                </svg>
-                <span>Compartir en X</span>
+            <a href="https://twitter.com/intent/tweet?url={{ resultado.share_url | urlencode }}&text={{ ('¡Descubrí que mi animal espiritual es un ' + resultado.animal + '! ¿Cuál es el tuyo?') | urlencode }}" target="_blank" class="inline-flex items-center justify-center gap-2 bg-black text-white font-semibold py-3 px-6 rounded-full hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.631L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z"/></svg>
+                <span>Compartir</span>
+            </a>
+
+            <!-- Botón para volver a inicio -->
+            <a href="/" class="inline-flex items-center justify-center gap-3 bg-amber-500 text-white font-bold py-3 px-6 rounded-full hover:bg-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                <span>Hacer el test de nuevo</span>
             </a>
         </div>
     </div>
 </main>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const animalName = "{{ resultado.animal }}";
-        const animalDescription = "{{ resultado.descripcion }}";
-        const animalImage = "{{ resultado.imagen }}";
-        const shareUrl = window.location.href;
-
-        // Compartir en Facebook
-        document.getElementById('share-facebook').addEventListener('click', function() {
-            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent("¡Mi animal interior es un " + animalName + "! " + animalDescription)}`;
-            window.open(facebookUrl, '_blank');
-        });
-
-        // Compartir en Twitter/X
-        document.getElementById('share-twitter').addEventListener('click', function() {
-            const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=¡Mi animal interior es un ${animalName}! ${encodeURIComponent(animalDescription)}`;
-            window.open(twitterUrl, '_blank');
-        });
-    });
-</script>
+<!-- El bloque de script ya no es necesario para los botones de compartir -->
 
 </body>
 </html>
