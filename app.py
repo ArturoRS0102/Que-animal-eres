@@ -50,6 +50,7 @@ def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
     Genera una imagen con DALL-E, la descarga y guarda localmente,
     y devuelve la URL pública del archivo guardado.
     """
+    # Imagen de respaldo por si todo falla
     fallback_image = url_for('static', filename='placeholder.png', _external=True)
     
     if not API_KEY:
@@ -65,27 +66,48 @@ def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
     
     try:
         # 1. Generar la URL de la imagen con DALL-E
+        print("Paso 1: Solicitando URL a DALL-E...")
         response_dalle = requests.post(API_URL_IMAGE, headers=headers, json=data, timeout=45)
         response_dalle.raise_for_status()
         dalle_url = response_dalle.json().get('data', [{}])[0].get('url')
         if not dalle_url:
             raise ValueError("La respuesta de DALL-E no contenía una URL.")
+        print(f"Paso 1 Exitoso. URL de DALL-E obtenida.")
 
         # 2. Descargar la imagen desde la URL de DALL-E
-        response_image = requests.get(dalle_url, stream=True, timeout=30)
+        print("Paso 2: Descargando contenido de la imagen...")
+        response_image = requests.get(dalle_url, timeout=30)
         response_image.raise_for_status()
+        
+        image_content = response_image.content
+        if not image_content:
+            raise ValueError("El contenido de la imagen descargada está vacío.")
+        print(f"Paso 2 Exitoso. Tamaño de la imagen descargada: {len(image_content)} bytes.")
 
         # 3. Guardar la imagen en nuestro servidor
         local_filename = f"{resultado_id}.png"
         local_filepath = os.path.join(IMAGE_DIR, local_filename)
+        print(f"Paso 3: Guardando imagen en: {local_filepath}")
         with open(local_filepath, 'wb') as f:
-            for chunk in response_image.iter_content(8192):
-                f.write(chunk)
+            f.write(image_content)
         
-        # 4. Devolver la URL pública de nuestra imagen local
-        return url_for('static', filename=f'generated_images/{local_filename}', _external=True)
+        # Verificación de que el archivo se escribió y no está vacío
+        if not os.path.exists(local_filepath) or os.path.getsize(local_filepath) == 0:
+            raise IOError("El archivo no se guardó correctamente en el servidor o está vacío.")
+        print("Paso 3 Exitoso. Archivo guardado.")
 
-    except Exception as e:
+        # 4. Devolver la URL pública de nuestra imagen local
+        final_url = url_for('static', filename=f'generated_images/{local_filename}', _external=True)
+        print(f"Paso 4: URL final generada: {final_url}")
+        return final_url
+
+    except requests.exceptions.Timeout:
+        print("Error crítico: Timeout durante la comunicación con la API de OpenAI.")
+        return fallback_image
+    except requests.exceptions.RequestException as e:
+        print(f"Error crítico de red al contactar OpenAI: {e}")
+        return fallback_image
+    except (ValueError, IOError, Exception) as e:
         print(f"Error crítico al generar o guardar la imagen: {e}")
         return fallback_image
 
