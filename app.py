@@ -44,3 +44,23 @@ cuestionario = [
     {"pregunta": "¿Cuál de estas cualidades valoras más en ti mismo?",
      "opciones": {"A": "Inteligencia y reflexión.", "B": "Fuerza y determinación.", "C": "Lealtad y compromiso.", "D": "Creatividad y adaptabilidad."}}
 ]
+
+@app.route('/')
+def index():
+    return render_template("quiz.html", cuestionario=cuestionario)
+
+@app.route('/resultado/<string:resultado_id>')
+def ver_resultado(resultado_id):
+    resultado = resultados_store.get(resultado_id)
+    if not resultado:
+        abort(404)
+    return render_template('resultado.html', resultado=resultado)
+
+@app.route('/analizar', methods=['POST'])
+def analizar():
+    print("📩 Solicitud recibida en /analizar")
+    data = request.get_json(silent=True)
+    respuestas = data.get('respuestas', {}) if data else {}
+    if not respuestas:
+        return jsonify({"error": "No se recibieron respuestas."}), 400
+    # ... resto de tu lógica como ya la tienes
