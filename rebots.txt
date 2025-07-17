@@ -1,4 +1,7 @@
+Permitir a todos los robots rastrear el sitio por defecto.
 User-agent: *
-Disallow:
+Allow: /
 
-Sitemap: https://que-animal-eres.onrender.com/sitemap.xml
+Dar permiso explícito al robot de Facebook.
+User-agent: facebookexternalhit
+Allow: /
