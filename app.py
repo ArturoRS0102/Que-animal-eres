@@ -14,8 +14,8 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # --- Configuración de API y Redis ---
 API_KEY = os.getenv("OPENAI_API_KEY")
 REDIS_URL = os.getenv("REDIS_URL") # Obtiene la URL de conexión de Redis
-API_URL_CHAT = "https://api.openai.com/v1/chat/completions"
-API_URL_IMAGE = "https://api.openai.com/v1/images/generations"
+OPENAI_API_KEY = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_KEY = "https://api.openai.com/v1/images/generations"
 
 # --- Conexión a Redis ---
 # Si no hay URL de Redis, la app no funcionará correctamente en producción.
