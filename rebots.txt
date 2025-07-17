@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://que-animal-eres.onrender.com/sitemap.xml

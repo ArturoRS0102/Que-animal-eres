@@ -4,6 +4,8 @@ import requests
 import uuid
 from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, abort
 from dotenv import load_dotenv
+from flask import Response
+
 
 # Cargar variables de entorno
 load_dotenv()
@@ -72,6 +74,35 @@ def ver_resultado(resultado_id):
     if not resultado:
         abort(404, description="Resultado no encontrado")
     return render_template('resultado.html', resultado=resultado)
+
+@app.route('/sitemap.xml')
+def sitemap():
+    # Base del sitio
+    base_url = request.url_root.rstrip('/')
+
+    # Páginas principales
+    urls = [f"{base_url}/"]
+
+    # Páginas de resultados almacenados
+    for resultado_id in resultados_store:
+        urls.append(f"{base_url}/resultado/{resultado_id}")
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for url in urls:
+        xml += f'  <url><loc>{url}</loc></url>\n'
+    xml += '</urlset>'
+
+    return Response(xml, mimetype='application/xml')
+
+
+@app.route('/robots.txt')
+def robots():
+    return """User-agent: *
+Disallow:
+
+Sitemap: https://que-animal-eres.onrender.com/sitemap.xml
+""", 200, {'Content-Type': 'text/plain'}
 
 @app.route('/sw.js')
 def serve_sw():
