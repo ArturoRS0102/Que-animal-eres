@@ -2,8 +2,7 @@ import os
 import json
 import requests
 import uuid
-import redis # Importamos la librería de Redis
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, abort, Response
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, abort
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -11,24 +10,22 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
-# --- Configuración de API y Redis ---
+# --- CREAR CARPETAS NECESARIAS ---
+# Aseguramos que la carpeta para guardar las imágenes exista.
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+IMAGE_DIR = os.path.join(STATIC_FOLDER, 'generated_images')
+os.makedirs(IMAGE_DIR, exist_ok=True)
+
+
+# --- Configuración de API ---
 API_KEY = os.getenv("OPENAI_API_KEY")
-REDIS_URL = os.getenv("REDIS_URL") # Obtiene la URL de conexión de Redis
-OPENAI_API_KEY = "https://api.openai.com/v1/chat/completions"
-OPENAI_API_KEY = "https://api.openai.com/v1/images/generations"
+API_URL_CHAT = "https://api.openai.com/v1/chat/completions"
+API_URL_IMAGE = "https://api.openai.com/v1/images/generations"
 
-# --- Conexión a Redis ---
-# Si no hay URL de Redis, la app no funcionará correctamente en producción.
-if not REDIS_URL:
-    print("ADVERTENCIA: La variable de entorno REDIS_URL no está configurada. La app no será persistente.")
-    # Para pruebas locales, puedes simularlo, pero en Render es necesario.
-    db = None 
-else:
-    # Conectamos a la base de datos de Redis
-    db = redis.from_url(REDIS_URL)
+# --- Almacenamiento de Resultados ---
+resultados_store = {}
 
-
-# --- Cuestionario (sin cambios) ---
+# --- Cuestionario ---
 cuestionario = [
     {"pregunta": "¿Cómo prefieres pasar tu tiempo libre?",
      "opciones": {"A": "En casa relajado y tranquilo.", "B": "Haciendo ejercicio o explorando al aire libre.", "C": "Con amigos o en reuniones sociales.", "D": "Probando algo nuevo o creativo."}},
@@ -48,25 +45,71 @@ cuestionario = [
      "opciones": {"A": "Inteligencia y reflexión.", "B": "Fuerza y determinación.", "C": "Lealtad y compromiso.", "D": "Creatividad y adaptabilidad."}}
 ]
 
-def generar_y_obtener_imagen_bytes(animal: str) -> bytes | None:
+def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
+    """
+    Genera una imagen con DALL-E, la descarga y guarda localmente,
+    y devuelve la URL pública del archivo guardado.
+    """
+    # Imagen de respaldo por si todo falla
+    fallback_image = url_for('static', filename='placeholder.png', _external=True)
+    
     if not API_KEY:
-        return None
+        print("ADVERTENCIA: No hay API Key. Usando imagen de fallback.")
+        return fallback_image
+
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
     data = {
         "model": "dall-e-3",
         "prompt": f"Un retrato artístico y amigable de un {animal}, estilo ilustración digital, con un fondo simple y colorido.",
         "n": 1, "size": "1024x1024", "quality": "standard"
     }
+    
     try:
+        # 1. Generar la URL de la imagen con DALL-E
+        print("Paso 1: Solicitando URL a DALL-E...")
         response_dalle = requests.post(API_URL_IMAGE, headers=headers, json=data, timeout=45)
         response_dalle.raise_for_status()
-        dalle_url = response_dalle.json()['data'][0]['url']
+        dalle_url = response_dalle.json().get('data', [{}])[0].get('url')
+        if not dalle_url:
+            raise ValueError("La respuesta de DALL-E no contenía una URL.")
+        print(f"Paso 1 Exitoso. URL de DALL-E obtenida.")
+
+        # 2. Descargar la imagen desde la URL de DALL-E
+        print("Paso 2: Descargando contenido de la imagen...")
         response_image = requests.get(dalle_url, timeout=30)
         response_image.raise_for_status()
-        return response_image.content
-    except Exception as e:
-        print(f"Error crítico al generar o descargar la imagen: {e}")
-        return None
+        
+        image_content = response_image.content
+        if not image_content:
+            raise ValueError("El contenido de la imagen descargada está vacío.")
+        print(f"Paso 2 Exitoso. Tamaño de la imagen descargada: {len(image_content)} bytes.")
+
+        # 3. Guardar la imagen en nuestro servidor
+        local_filename = f"{resultado_id}.png"
+        local_filepath = os.path.join(IMAGE_DIR, local_filename)
+        print(f"Paso 3: Guardando imagen en: {local_filepath}")
+        with open(local_filepath, 'wb') as f:
+            f.write(image_content)
+        
+        # Verificación de que el archivo se escribió y no está vacío
+        if not os.path.exists(local_filepath) or os.path.getsize(local_filepath) == 0:
+            raise IOError("El archivo no se guardó correctamente en el servidor o está vacío.")
+        print("Paso 3 Exitoso. Archivo guardado.")
+
+        # 4. Devolver la URL pública de nuestra imagen local
+        final_url = url_for('static', filename=f'generated_images/{local_filename}', _external=True)
+        print(f"Paso 4: URL final generada: {final_url}")
+        return final_url
+
+    except requests.exceptions.Timeout:
+        print("Error crítico: Timeout durante la comunicación con la API de OpenAI.")
+        return fallback_image
+    except requests.exceptions.RequestException as e:
+        print(f"Error crítico de red al contactar OpenAI: {e}")
+        return fallback_image
+    except (ValueError, IOError, Exception) as e:
+        print(f"Error crítico al generar o guardar la imagen: {e}")
+        return fallback_image
 
 # --- Rutas de la Aplicación ---
 
@@ -76,36 +119,24 @@ def index():
 
 @app.route('/resultado/<string:resultado_id>')
 def ver_resultado(resultado_id):
-    if not db: abort(503, "Base de datos no disponible.")
-    
-    # Obtenemos los datos desde Redis
-    resultado_json = db.get(f"resultado:{resultado_id}:json")
-    if not resultado_json:
+    resultado = resultados_store.get(resultado_id)
+    if not resultado:
         abort(404)
-    
-    resultado = json.loads(resultado_json)
     return render_template('resultado.html', resultado=resultado)
 
-@app.route('/image/<string:resultado_id>.png')
-def serve_generated_image(resultado_id):
-    if not db: abort(503, "Base de datos no disponible.")
-
-    # Obtenemos los bytes de la imagen desde Redis
-    image_content = db.get(f"resultado:{resultado_id}:image")
-    if not image_content:
-        abort(404)
-    
-    return Response(image_content, mimetype='image/png')
+# Rutas para archivos en la raíz
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('.', 'sw.js')
 
 @app.route('/robots.txt')
 def serve_robots():
-    content = "User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /"
-    return Response(content, mimetype='text/plain')
+    return send_from_directory('.', 'robots.txt')
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
-    if not API_KEY or not db:
-        return jsonify({"error": "El servicio no está disponible actualmente."}), 503
+    if not API_KEY:
+        return jsonify({"error": "La API key no está configurada."}), 500
     
     respuestas = request.json.get('respuestas', {})
     if not respuestas:
@@ -130,19 +161,13 @@ def analizar():
 
         resultado_id = str(uuid.uuid4())
         
+        # Generar, guardar y obtener la URL local de la imagen
         animal_nombre = resultado_data.get("animal", "desconocido")
-        image_bytes = generar_y_obtener_imagen_bytes(animal_nombre)
+        local_image_url = generar_y_guardar_imagen(animal_nombre, resultado_id)
+        resultado_data['imagen'] = local_image_url
         
-        if not image_bytes:
-            raise ValueError("No se pudo generar el contenido de la imagen.")
-
-        # Creamos las URLs que usaremos en las plantillas y para compartir
-        resultado_data['imagen'] = url_for('serve_generated_image', resultado_id=resultado_id, _external=True)
         resultado_data['share_url'] = url_for('ver_resultado', resultado_id=resultado_id, _external=True)
-        
-        # Guardamos los datos en Redis con una expiración de 24 horas
-        db.set(f"resultado:{resultado_id}:json", json.dumps(resultado_data), ex=86400)
-        db.set(f"resultado:{resultado_id}:image", image_bytes, ex=86400)
+        resultados_store[resultado_id] = resultado_data
 
         return jsonify(resultado_data)
 
@@ -152,8 +177,7 @@ def analizar():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return "<h1>404 - Página no encontrada</h1>", 404
+    return render_template('404.html'), 404
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5001, debug=True)
-
