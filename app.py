@@ -4,6 +4,8 @@ import requests
 import uuid
 from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, abort
 from dotenv import load_dotenv
+from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
 
 # Cargar variables de entorno
 load_dotenv()
@@ -99,6 +101,46 @@ def generar_y_guardar_imagen(animal: str, resultado_id: str) -> str:
         print(f"Error crítico al generar o guardar la imagen: {e}")
         return fallback_image
 
+def generar_imagen_compuesta(resultado: dict, resultado_id: str) -> str:
+    try:
+        response = requests.get(resultado['imagen'], timeout=30)
+        response.raise_for_status()
+        animal_img = Image.open(BytesIO(response.content)).convert("RGBA")
+
+        canvas_width, canvas_height = 1024, 1280
+        background = Image.new("RGBA", (canvas_width, canvas_height), (255, 255, 255, 255))
+
+        animal_img = animal_img.resize((800, 800))
+        background.paste(animal_img, (112, 20))  # centrado
+
+        draw = ImageDraw.Draw(background)
+
+        # Intenta usar fuente del sistema. Ajusta si no estás en Linux:
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        if not os.path.exists(font_path):
+            font_path = "arial.ttf"  # En Windows
+
+        font_title = ImageFont.truetype(font_path, 50)
+        font_body = ImageFont.truetype(font_path, 36)
+
+        y_text = 850
+        draw.text((canvas_width//2, y_text), f"{resultado['animal']}", font=font_title, fill="black", anchor="mm")
+        y_text += 70
+        draw.text((canvas_width//2, y_text), f"{resultado['lema']}", font=font_body, fill="black", anchor="mm")
+        y_text += 100
+        descripcion = resultado['descripcion']
+        draw.multiline_text((canvas_width//2, y_text), descripcion, font=font_body, fill="black", anchor="mm", spacing=6, align="center")
+
+        final_filename = f"compuesto_{resultado_id}.png"
+        final_path = os.path.join(IMAGE_DIR, final_filename)
+        background.save(final_path)
+
+        return url_for('static', filename=f'generated_images/{final_filename}', _external=True)
+
+    except Exception as e:
+        print(f"Error al generar imagen compuesta: {e}")
+        return url_for('static', filename='placeholder.png', _external=True)
+        
 # --- Rutas de la Aplicación ---
 
 @app.route('/')
